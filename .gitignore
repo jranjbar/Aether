@@ -2,3 +2,5 @@ bin/
 dist/
 .env
 .gocache/
+.gomodcache/
+.gopath/

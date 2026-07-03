@@ -8,7 +8,9 @@ import (
 	"syscall"
 
 	"github.com/jranjbar/Aether/apps/smart-factory-api/internal/config"
+	"github.com/jranjbar/Aether/apps/smart-factory-api/internal/database"
 	"github.com/jranjbar/Aether/apps/smart-factory-api/internal/logger"
+	"github.com/jranjbar/Aether/apps/smart-factory-api/internal/repository"
 	"github.com/jranjbar/Aether/apps/smart-factory-api/internal/server"
 )
 
@@ -29,7 +31,18 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	router := server.NewRouter(log)
+	db, err := database.Open(cfg.Database)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Error("database close failed", slog.String("error", err.Error()))
+		}
+	}()
+
+	healthRepository := repository.NewHealthRepository(db)
+	router := server.NewRouter(log, healthRepository)
 	httpServer := server.New(cfg, log, router)
 	errCh := make(chan error, 1)
 

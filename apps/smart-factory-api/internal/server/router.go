@@ -9,9 +9,9 @@ import (
 )
 
 // NewRouter builds the API routes and middleware stack.
-func NewRouter(log *slog.Logger) http.Handler {
+func NewRouter(log *slog.Logger, healthChecker health.Checker) http.Handler {
 	mux := http.NewServeMux()
-	healthHandler := health.NewHandler()
+	healthHandler := health.NewHandler(healthChecker)
 
 	mux.HandleFunc("GET /health", healthHandler.Health)
 	mux.HandleFunc("GET /ready", healthHandler.Ready)

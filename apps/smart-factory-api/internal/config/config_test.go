@@ -14,6 +14,11 @@ func TestLoadUsesDefaults(t *testing.T) {
 	t.Setenv("HTTP_WRITE_TIMEOUT", "")
 	t.Setenv("HTTP_IDLE_TIMEOUT", "")
 	t.Setenv("HTTP_SHUTDOWN_TIMEOUT", "")
+	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DATABASE_MAX_OPEN_CONNS", "")
+	t.Setenv("DATABASE_MAX_IDLE_CONNS", "")
+	t.Setenv("DATABASE_CONN_MAX_LIFETIME", "")
+	t.Setenv("DATABASE_PING_TIMEOUT", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -35,6 +40,10 @@ func TestLoadUsesDefaults(t *testing.T) {
 	if cfg.Port != "8080" {
 		t.Fatalf("Port = %q, want %q", cfg.Port, "8080")
 	}
+
+	if cfg.Database.URL == "" {
+		t.Fatal("Database.URL is empty")
+	}
 }
 
 func TestLoadUsesEnvironment(t *testing.T) {
@@ -46,6 +55,11 @@ func TestLoadUsesEnvironment(t *testing.T) {
 	t.Setenv("HTTP_WRITE_TIMEOUT", "2s")
 	t.Setenv("HTTP_IDLE_TIMEOUT", "3s")
 	t.Setenv("HTTP_SHUTDOWN_TIMEOUT", "4s")
+	t.Setenv("DATABASE_URL", "postgres://user:pass@localhost:5432/db?sslmode=disable")
+	t.Setenv("DATABASE_MAX_OPEN_CONNS", "10")
+	t.Setenv("DATABASE_MAX_IDLE_CONNS", "4")
+	t.Setenv("DATABASE_CONN_MAX_LIFETIME", "5m")
+	t.Setenv("DATABASE_PING_TIMEOUT", "500ms")
 
 	cfg, err := Load()
 	if err != nil {
@@ -59,10 +73,32 @@ func TestLoadUsesEnvironment(t *testing.T) {
 	if cfg.ReadTimeout != time.Second || cfg.WriteTimeout != 2*time.Second || cfg.IdleTimeout != 3*time.Second || cfg.ShutdownTimeout != 4*time.Second {
 		t.Fatalf("Load() timeouts = %+v", cfg)
 	}
+
+	if cfg.Database.URL != "postgres://user:pass@localhost:5432/db?sslmode=disable" {
+		t.Fatalf("Database.URL = %q", cfg.Database.URL)
+	}
+
+	if cfg.Database.MaxOpenConns != 10 || cfg.Database.MaxIdleConns != 4 {
+		t.Fatalf("Load() database pool = %+v", cfg.Database)
+	}
+
+	if cfg.Database.ConnMaxLifetime != 5*time.Minute || cfg.Database.PingTimeout != 500*time.Millisecond {
+		t.Fatalf("Load() database timeouts = %+v", cfg.Database)
+	}
 }
 
 func TestLoadRejectsInvalidPort(t *testing.T) {
 	t.Setenv("HTTP_PORT", "invalid")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() error = nil, want error")
+	}
+}
+
+func TestLoadRejectsInvalidDatabasePool(t *testing.T) {
+	t.Setenv("DATABASE_MAX_OPEN_CONNS", "2")
+	t.Setenv("DATABASE_MAX_IDLE_CONNS", "3")
 
 	_, err := Load()
 	if err == nil {

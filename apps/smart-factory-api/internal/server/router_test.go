@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -9,7 +10,7 @@ import (
 )
 
 func TestNewRouterRegistersProbeRoutes(t *testing.T) {
-	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)))
+	router := NewRouter(slog.New(slog.NewTextHandler(io.Discard, nil)), routerChecker{})
 
 	for _, path := range []string{"/health", "/ready", "/live"} {
 		t.Run(path, func(t *testing.T) {
@@ -23,4 +24,10 @@ func TestNewRouterRegistersProbeRoutes(t *testing.T) {
 			}
 		})
 	}
+}
+
+type routerChecker struct{}
+
+func (routerChecker) Check(ctx context.Context) error {
+	return nil
 }

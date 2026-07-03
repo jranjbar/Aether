@@ -1,13 +1,15 @@
 package health
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
 func TestHandlerEndpointsReturnOK(t *testing.T) {
-	handler := NewHandler()
+	handler := NewHandler(stubChecker{})
 	tests := map[string]http.HandlerFunc{
 		"health": handler.Health,
 		"ready":  handler.Ready,
@@ -30,4 +32,35 @@ func TestHandlerEndpointsReturnOK(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHandlerReturnsUnavailableWhenCheckFails(t *testing.T) {
+	handler := NewHandler(stubChecker{err: errors.New("offline")})
+
+	for _, endpoint := range []struct {
+		name    string
+		handler http.HandlerFunc
+	}{
+		{name: "health", handler: handler.Health},
+		{name: "ready", handler: handler.Ready},
+	} {
+		t.Run(endpoint.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/"+endpoint.name, nil)
+			response := httptest.NewRecorder()
+
+			endpoint.handler(response, request)
+
+			if response.Code != http.StatusServiceUnavailable {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusServiceUnavailable)
+			}
+		})
+	}
+}
+
+type stubChecker struct {
+	err error
+}
+
+func (s stubChecker) Check(ctx context.Context) error {
+	return s.err
 }
