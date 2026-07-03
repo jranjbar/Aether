@@ -1,3 +1,3 @@
-module github.com/your-org/aether
+module github.com/jranjbar/Aether
 
-go 1.24
+go 1.26
